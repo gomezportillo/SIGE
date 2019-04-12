@@ -36,3 +36,4 @@ vignettes/*.pdf
 rsconnect/
 
 data/train.csv
+data/processed.csv
