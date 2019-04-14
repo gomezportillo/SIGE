@@ -65,12 +65,12 @@ data_num <- data %>%
   mutate_if(is.factor, as.numeric)
 
 cor_target <- correlation_table(data_num, target='target')
-important_vars <- cor_target %>% 
+correlated_vars <- cor_target %>% 
   filter(abs(target) >= 0.05)
 
 ## Cuando tenemos las columnas las seleccionamos del dataset
 data_num <- data_num %>%
-  select(one_of(important_vars$Variable))
+  select(one_of(correlated_vars$Variable))
 
 ## Alta correlacion entre sí
 rcorr_result <- rcorr(as.matrix(data_num))
