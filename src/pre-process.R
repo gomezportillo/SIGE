@@ -3,6 +3,8 @@
 ## Pedro Manuel Gómez-Portillo López
 ## -------------------------------------------------------------------
 
+# 0. Configuración del entorno ---------------------------------------
+
 setwd("~/GitHub/SIGE/")
   
 library(tidyverse)
@@ -14,10 +16,10 @@ library(ggplot2)
 
 options(max.print = 999)
 
-set.seed(1)
+set.seed(0)
 
 
-# 1. Lectura de datos ----------------------------------------------
+# 1. Lectura de datos -----------------------------------------------
 
 data_raw <- read_csv('data/train.csv') # na = c('NA')
 
@@ -30,7 +32,7 @@ status <- df_status(data_raw) # ???con esto sabemos que hay columnas con un 0.02
 glimpse(data_raw)
 
 
-# 2. Eliminación de columnas y filas no útiles -----------------------------
+# 2. Eliminación de columnas y filas no útiles ----------------------
 
 ## Eliminar la columna ID por no aportar nada
 data <- select(data_raw, -ID_code)
@@ -81,6 +83,8 @@ corrplot(rcorr_result$r, type = "upper", order = "original", tl.col = "black", t
 v <- varclus(as.matrix(data_num), similarity="pearson") 
 plot(v)
 
-write_csv(data_num, 'data/processed.csv')
+write_csv(data_num, 'out/processed.csv')
 
 ## Eliminar ruido
+
+### TODO
