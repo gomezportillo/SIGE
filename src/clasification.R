@@ -13,72 +13,26 @@ library(funModeling)
 library(pROC)
 library(DMwR)
 library(lubridate)
-library(randomForest)
 
 options(max.print = 999)
 
 set.seed(0)
 
-# 1. Definición de funciones ------------------------------------------
-# 
-# my_roc <-
-#   function(data,
-#            predictionProb,
-#            target_var,
-#            positive_class) {
-#     auc <-
-#       roc(data[[target_var]], predictionProb[[positive_class]], levels = unique(data[[target_var]]))
-#     roc <-
-#       plot.roc(
-#         auc,
-#         ylim = c(0, 1),
-#         type = "S" ,
-#         print.thres = T,
-#         main = paste('AUC:', round(auc$auc[[1]], 2))
-#       )
-#     return(list("auc" = auc, "roc" = roc))
-#   }
-# 
-# 
-# trainRF <-
-#   function(train_data) {
-#     rfCtrl <- trainControl(
-#       method = "repeatedcv",
-#       number = 10,
-#       classProbs = TRUE,
-#       repeats = 1,
-#       summaryFunction = twoClassSummary
-#     )
-#     
-#     rfParametersGrid <-
-#       expand.grid(.mtry = c(sqrt(ncol(train_data))))
-#     
-#     rfModel <- train(
-#       target ~ .,
-#       data = train_data,
-#       method = "rf",
-#       metric = "ROC",
-#       verbose = FALSE,
-#       trControl = rfCtrl,
-#       tuneGrid = rfParametersGrid
-#     )
-#     
-#     return(rfModel)
-#   }
-
-
-# 2. Lectura de datos ya preprocesados --------------------------------
+# 1. Lectura de datos ya preprocesados --------------------------------
 
 data_raw <- read_csv('out/processed.csv')
 data <- data_raw %>%
   na.exclude() %>%
   mutate(target = as.factor(target))
 
-# reducir datos para pruebas
-data <- data[createDataPartition(data$target, p = .05, list = FALSE, times = 1), ]
+# reducir datos al 5% para pruebas más rápidas
+# data <- data[createDataPartition(data$target,
+#                                  p = .05,
+#                                  list = FALSE,
+#                                  times = 1), ]
 
 
-# 3. Clasificación de los datos ---------------------------------------
+# 2. Clasificación de los datos ---------------------------------------
 
 ## Estudio del equilibrio de clases
 
@@ -87,46 +41,66 @@ ggplot(data) +
   geom_histogram(aes(x = target, fill = target), stat = 'count')
 
 
-## Crear modelo de predicción usando Random Forest con partición aleatoria
+## Crear dos particiones aleatoria
 
-trainIndex <-
+part_index <-
   createDataPartition(data$target,
                       p = .75,
                       list = FALSE,
                       times = 1)
 
-train_data <- data[trainIndex,]
-val   <- train_data[-trainIndex,]
+train_data <- data[part_index,]
+val_data   <- data[-part_index,]
 table(train_data$target)
-table(val$target)
+table(val_data$target)
 
-### Arreglar nombres inválidos https://stackoverflow.com/a/34833973/3594238
-# feature.names=names(train_data)
-# 
-# for (f in feature.names) {
-#   if (class(train_data[[f]])=="factor") {
-#     levels <- unique(c(train_data[[f]]))
-#     train_data[[f]] <- factor(train_data[[f]],
-#                          labels=make.names(levels))
-#   }
-# }
-# train_data$Class <- factor(train_data$Class)
+## Configurar los datos para entrenar los modelso
 
-rfModel <- trainRF(train_data)
-saveRDS(rfModel, file = 'out/model1.rds')
-# rfModel <- readRDS('out/model1.rds')
+# RepeatedCV: resampling method: diviging the dataset into 5 subsets and testing each one and averaging the error
+train_Ctrl <- trainControl(
+  verboseIter = F,
+  classProbs = TRUE,
+  method = "repeatedcv",
+  number = 5,
+  repeats = 1,
+  summaryFunction = twoClassSummary
+)
+
+# tune grid lets us decide which values the main parameter will take
+train_TuneGrid <- expand.grid(.mtry = c(sqrt(ncol(train_data))))
+
+
+## Random forest
+
+time1 <- now()
+
+rfModel <-
+  train(
+    target ~ .,
+    data = train_data,
+    method = "rf",
+    metric = "ROC",
+    trControl = train_Ctrl,
+    tuneGrid = train_TuneGrid
+  )
+
+(elapsed_time <- now() - time1)
+
+saveRDS(rfModel, file = 'out/rfModel.rds')
 print(rfModel)
 
+prediction_p <- predict(rfModel, val_data, type = "prob")
+prediction_r <- predict(rfModel, val_data, type = "raw")
+(conf_matrix <- confusionMatrix(prediction_r, val_data$target))
 
-prediction_p <- predict(rfModel, val, type = "prob")
-prediction_r <- predict(rfModel, val, type = "raw")
-result <- my_roc(val, prediction_p, "target", "Paid")
-
-plotdata <- val %>%
+plotdata <- val_data %>%
   select(target) %>%
   bind_cols(prediction_p) %>%
   bind_cols(Prediction = prediction_r)
 
-table(plotdata$target, plotdata$Prediction)  # columnas son predicciones
+table(plotdata$target, plotdata$Prediction)
 ggplot(plotdata) +
   geom_bar(aes(x = target, fill = Prediction), position = position_fill())
+
+
+# SVM
