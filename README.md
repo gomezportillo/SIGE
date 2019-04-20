@@ -1,6 +1,6 @@
 # Preprocesamiento de datos y clasificación binaria
 
-[PDF con la documentación final](doc/Documentación final.pdf).
+[PDF con la documentación final](doc/Documentacion.pdf).
 
 ## Introducción
 
