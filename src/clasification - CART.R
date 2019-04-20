@@ -25,21 +25,14 @@ data <- data_raw %>%
   na.exclude() %>%
   mutate(target = as.factor(target))
 
-# reducir datos al 5% para pruebas más rápidas
-# data <- data[createDataPartition(data$target,
-#                                  p = .05,
+# # reducir datos al 25% para pruebas más rápidas
+# tmp_index <- createDataPartition(data$target,
+#                                  p = .25,
 #                                  list = FALSE,
-#                                  times = 1), ]
-
+#                                  times = 1)
+# data <- data[tmp_index, ]
 
 # 2. Clasificación de los datos ---------------------------------------
-
-## Estudio del equilibrio de clases
-
-table(data$target)
-ggplot(data) +
-  geom_histogram(aes(x = target, fill = target), stat = 'count')
-
 
 ## Crear dos particiones aleatoria
 
@@ -69,28 +62,26 @@ train_Ctrl <- trainControl(
 # tune grid lets us decide which values the main parameter will take
 train_TuneGrid <- expand.grid(.mtry = c(sqrt(ncol(train_data))))
 
+# CART
 
-## Random forest
+time_prev <- now()
 
-time1 <- now()
-
-rfModel <-
+cartModel <-
   train(
     target ~ .,
     data = train_data,
-    method = "rf",
+    method = "rpart",
     metric = "ROC",
-    trControl = train_Ctrl,
-    tuneGrid = train_TuneGrid
+    trControl = train_Ctrl
   )
 
-(elapsed_time <- now() - time1)
+(elapsed_time <- now() - time_prev)
 
-saveRDS(rfModel, file = 'out/rfModel.rds')
-print(rfModel)
+saveRDS(cartModel, file = 'out/cartModel.rds')
+print(cartModel)
 
-prediction_p <- predict(rfModel, val_data, type = "prob")
-prediction_r <- predict(rfModel, val_data, type = "raw")
+prediction_p <- predict(cartModel, val_data, type = "prob")
+prediction_r <- predict(cartModel, val_data, type = "raw")
 (conf_matrix <- confusionMatrix(prediction_r, val_data$target))
 
 plotdata <- val_data %>%
@@ -101,6 +92,3 @@ plotdata <- val_data %>%
 table(plotdata$target, plotdata$Prediction)
 ggplot(plotdata) +
   geom_bar(aes(x = target, fill = Prediction), position = position_fill())
-
-
-# SVM
