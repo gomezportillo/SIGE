@@ -36,4 +36,4 @@ vignettes/*.pdf
 rsconnect/
 
 data/train.csv
-out/*
+out/*Model.rds
